@@ -45,6 +45,7 @@ const InterviewPrep: React.FC = () => {
     const [selectedRole, setSelectedRole] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
     const [showResults, setShowResults] = useState(false);
 
@@ -53,6 +54,7 @@ const InterviewPrep: React.FC = () => {
 
         setIsLoading(true);
         setQuestions([]);
+        setCurrentQuestionIndex(0);
         setUserAnswers({});
         setShowResults(false);
 
@@ -75,7 +77,7 @@ const InterviewPrep: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer sk-4241f1b27868414d8dd0155442809c53'
+                    'Authorization': `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY || 'sk-4241f1b27868414d8dd0155442809c53'}`
                 },
                 body: JSON.stringify({
                     model: "deepseek-chat",
@@ -219,11 +221,11 @@ const InterviewPrep: React.FC = () => {
                             {isLoading ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Generating 50 Questions...
+                                    Generating Assessment...
                                 </>
                             ) : (
                                 <>
-                                    Generate 50 Questions <ArrowRight size={16} />
+                                    Start Assessment <ArrowRight size={16} />
                                 </>
                             )}
                         </button>
@@ -257,7 +259,66 @@ const InterviewPrep: React.FC = () => {
                     </div>
 
                     <div className="space-y-8">
-                        {questions.map((q, index) => (
+                        {questions.length > 0 && !showResults && (
+                            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 min-h-[400px]">
+                                <h4 className="font-bold text-slate-900 mb-4 flex gap-3 text-lg">
+                                    <span className="text-[#1d84b5] shrink-0">{currentQuestionIndex + 1}.</span>
+                                    {questions[currentQuestionIndex].question}
+                                </h4>
+
+                                <div className="space-y-4 pl-7 mt-8">
+                                    {questions[currentQuestionIndex].options.map((option, optIdx) => {
+                                        const isSelected = userAnswers[questions[currentQuestionIndex].id] === optIdx;
+
+                                        return (
+                                            <button
+                                                key={optIdx}
+                                                onClick={() => handleAnswerSelect(questions[currentQuestionIndex].id, optIdx)}
+                                                className={`w-full text-left px-6 py-4 rounded-xl border transition-all flex items-center justify-between gap-4 text-base ${isSelected
+                                                        ? "bg-white border-[#1d84b5] ring-2 ring-[#1d84b5] text-[#1d84b5] font-medium shadow-md"
+                                                        : "bg-white border-slate-200 text-slate-600 hover:border-[#1d84b5] hover:shadow-sm cursor-pointer"
+                                                    }`}
+                                            >
+                                                <span>{option}</span>
+                                                {isSelected && <CheckCircle2 size={20} className="text-[#1d84b5] shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="mt-12 flex justify-between items-center px-2">
+                                    <div className="text-sm font-bold text-slate-400">
+                                        Question {currentQuestionIndex + 1} of {questions.length}
+                                    </div>
+
+                                    {currentQuestionIndex < questions.length - 1 ? (
+                                        <button
+                                            onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                                            disabled={userAnswers[questions[currentQuestionIndex].id] === undefined}
+                                            className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors ${userAnswers[questions[currentQuestionIndex].id] !== undefined
+                                                    ? "bg-slate-900 text-white hover:bg-slate-800 shadow-md"
+                                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            Next Question <ArrowRight size={16} />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowResults(true)}
+                                            disabled={userAnswers[questions[currentQuestionIndex].id] === undefined}
+                                            className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors ${userAnswers[questions[currentQuestionIndex].id] !== undefined
+                                                    ? "bg-[#1d84b5] text-white hover:bg-[#166992] shadow-lg shadow-[#1d84b5]/20"
+                                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            Submit Assessment <CheckCircle2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {showResults && questions.map((q, index) => (
                             <div key={q.id} className="p-6 rounded-2xl bg-slate-50 border border-slate-100">
                                 <h4 className="font-bold text-slate-900 mb-4 flex gap-3">
                                     <span className="text-[#1d84b5] shrink-0">{index + 1}.</span>
@@ -280,24 +341,17 @@ const InterviewPrep: React.FC = () => {
                                             } else {
                                                 optionClasses += "bg-white border-slate-200 text-slate-500 opacity-50";
                                             }
-                                        } else {
-                                            optionClasses += isSelected
-                                                ? "bg-white border-[#1d84b5] ring-1 ring-[#1d84b5] text-[#1d84b5] font-medium shadow-sm"
-                                                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 cursor-pointer";
                                         }
 
                                         return (
-                                            <button
+                                            <div
                                                 key={optIdx}
-                                                onClick={() => handleAnswerSelect(q.id, optIdx)}
-                                                disabled={showResults}
                                                 className={optionClasses}
                                             >
                                                 <span>{option}</span>
                                                 {showResults && isCorrect && <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />}
                                                 {showResults && isWrongSelection && <XCircle size={18} className="text-rose-500 shrink-0" />}
-                                                {!showResults && isSelected && <CheckCircle2 size={18} className="text-[#1d84b5] shrink-0" />}
-                                            </button>
+                                            </div>
                                         );
                                     })}
                                 </div>
@@ -315,17 +369,6 @@ const InterviewPrep: React.FC = () => {
                             </div>
                         ))}
                     </div>
-
-                    {!showResults && Object.keys(userAnswers).length > 0 && (
-                        <div className="mt-12 flex justify-end shrink-0 sticky bottom-6 z-10">
-                            <button
-                                onClick={() => setShowResults(true)}
-                                className="flex items-center gap-2 px-8 py-4 bg-[#1d84b5] text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-[#166992] transition-colors shadow-lg shadow-[#1d84b5]/20"
-                            >
-                                Submit Answers <ArrowRight size={16} />
-                            </button>
-                        </div>
-                    )}
                 </section>
             )}
 
