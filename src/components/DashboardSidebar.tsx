@@ -44,8 +44,8 @@ const DashboardSidebar: React.FC = () => {
                             key={item.name}
                             onClick={() => navigate(item.path)}
                             className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${isActive
-                                    ? 'bg-slate-900 text-white shadow-lg'
-                                    : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
+                                ? 'bg-slate-900 text-white shadow-lg'
+                                : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
                         >
                             <div className="flex items-center gap-4">
@@ -63,7 +63,7 @@ const DashboardSidebar: React.FC = () => {
             <div className="mt-auto pt-8 border-t border-slate-50">
                 <div className="flex items-center gap-4 mb-8 px-2">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#53a2be] to-[#1d84b5] flex items-center justify-center text-white font-black">
-                        {user?.email?.[0].toUpperCase()}
+                        {user?.email?.[0]?.toUpperCase() || 'U'}
                     </div>
                     <div className="overflow-hidden">
                         <p className="text-sm font-black text-slate-900 truncate uppercase tracking-tight">{user?.name || 'User'}</p>
