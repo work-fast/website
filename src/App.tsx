@@ -182,6 +182,7 @@ const AppRoutes: React.FC = () => {
     '/dashboard',
     '/generator',
     '/interview-prep',
+    '/history',
     '/settings',
     '/contact-support'
   ].includes(location.pathname);

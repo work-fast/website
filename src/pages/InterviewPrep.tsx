@@ -83,7 +83,7 @@ const InterviewPrep: React.FC = () => {
                     'anthropic-dangerous-direct-browser-access': 'true'
                 },
                 body: JSON.stringify({
-                    model: "claude-3-5-sonnet-20241022",
+                    model: "claude-sonnet-4-6",
                     max_tokens: 8000,
                     system: "You are a specialized technical interview question generator that outputs only raw JSON arrays.",
                     messages: [
