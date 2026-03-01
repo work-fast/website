@@ -23,14 +23,14 @@ const Login: React.FC = () => {
         try {
             if (mode === 'signIn') {
                 await auth.signIn(email, password);
-                navigate('/generator');
+                navigate('/dashboard');
                 window.location.reload();
             } else if (mode === 'signUp') {
                 await auth.signUp(email, password);
                 setMode('verifyEmail');
             } else if (mode === 'verifyEmail') {
                 await auth.verifyOtp(email, otp);
-                navigate('/generator');
+                navigate('/dashboard');
                 window.location.reload();
             } else if (mode === 'forgotPassword') {
                 // Supabase forgot password would go here

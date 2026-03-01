@@ -4,6 +4,9 @@ import { Menu, X } from 'lucide-react';
 import Home from './pages/Home';
 import Generator from './pages/Generator';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import { InterviewPrep, Settings, Contact } from './pages/DashboardPlaceholders';
+import DashboardLayout from './components/DashboardLayout';
 import { Platform, Solutions, Pricing } from './pages/Placeholders';
 import { Privacy, Terms } from './pages/Legal';
 import { auth } from './lib/auth';
@@ -171,23 +174,51 @@ const Footer: React.FC = () => (
   </footer>
 );
 
+const AppRoutes: React.FC = () => {
+  const location = useLocation();
+  const isDashboardRoute = [
+    '/dashboard',
+    '/generator',
+    '/interview-prep',
+    '/settings',
+    '/contact-support'
+  ].includes(location.pathname);
+
+  if (isDashboardRoute) {
+    return (
+      <DashboardLayout>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/generator" element={<Generator />} />
+          <Route path="/interview-prep" element={<InterviewPrep />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/contact-support" element={<Contact />} />
+        </Routes>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/platform" element={<Platform />} />
+        <Route path="/solutions" element={<Solutions />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+      </Routes>
+      <Footer />
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/platform" element={<Platform />} />
-          <Route path="/solutions" element={<Solutions />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/generator" element={<Generator />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-        </Routes>
-        <Footer />
-      </div>
+      <AppRoutes />
     </Router>
   );
 };

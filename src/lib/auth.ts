@@ -11,6 +11,7 @@ const USER_KEY = 'workfast_user';
 export interface User {
     email: string;
     name?: string;
+    resumesLeft?: number;
 }
 
 export const auth = {
