@@ -46,12 +46,12 @@ const Settings: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         try {
-            auth.updateUser({ profileData: formData });
-            alert("Settings saved successfully!");
+            await auth.updateUserProfile({ profileData: formData });
+            alert("Settings saved successfully to database!");
         } catch (error) {
-            console.error("Error saving settings", error);
+            console.error("Error saving settings to database", error);
             alert("Failed to save settings.");
         }
     };
