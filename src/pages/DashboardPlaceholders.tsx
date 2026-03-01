@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Mail, Construction, History as HistoryIcon } from 'lucide-react';
+import { Mail, Construction, History as HistoryIcon } from 'lucide-react';
 
 const PlaceholderPage: React.FC<{ title: string; icon: React.ReactNode }> = ({ title, icon }) => (
     <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in duration-700">
@@ -21,6 +21,5 @@ const PlaceholderPage: React.FC<{ title: string; icon: React.ReactNode }> = ({ t
     </div>
 );
 
-export const InterviewPrep: React.FC = () => <PlaceholderPage title="Interview Prep" icon={<MessageSquare size={48} />} />;
 export const History: React.FC = () => <PlaceholderPage title="History" icon={<HistoryIcon size={48} />} />;
 export const Contact: React.FC = () => <PlaceholderPage title="Contact Support" icon={<Mail size={48} />} />;
