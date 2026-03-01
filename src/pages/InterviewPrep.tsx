@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code, MonitorPlay, FileCode2, Terminal, Database, ArrowRight, Briefcase } from 'lucide-react';
+import { Code, MonitorPlay, FileCode2, Terminal, Database, ArrowRight, Briefcase, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 const technologies = [
     { value: 'java', label: 'Java', category: 'Backend' },
@@ -32,9 +32,110 @@ const focusRoles = [
     { value: 'manager', label: 'Engineering Manager' }
 ];
 
+interface Question {
+    id: number;
+    question: string;
+    options: string[];
+    correctAnswer: number;
+    explanation: string;
+}
+
 const InterviewPrep: React.FC = () => {
     const [selectedTech, setSelectedTech] = useState<string>('');
     const [selectedRole, setSelectedRole] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
+    const [showResults, setShowResults] = useState(false);
+
+    const handleGenerateQuestions = async () => {
+        if (!selectedTech || !selectedRole) return;
+
+        setIsLoading(true);
+        setQuestions([]);
+        setUserAnswers({});
+        setShowResults(false);
+
+        const techLabel = technologies.find(t => t.value === selectedTech)?.label || selectedTech;
+        const roleLabel = focusRoles.find(r => r.value === selectedRole)?.label || selectedRole;
+
+        const prompt = `You are an expert technical interviewer. Generate exactly 50 multiple-choice questions for a ${roleLabel} focusing on ${techLabel}. 
+        Return ONLY a raw, valid JSON array of objects. Do not use markdown blocks, do not include any other text.
+        Each object MUST have this exact structure:
+        {
+            "id": number (1-50),
+            "question": "The text of the question",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correctAnswer": number (0-3, corresponding to the correct option index),
+            "explanation": "A brief explanation of why the answer is correct."
+        }`;
+
+        try {
+            const response = await fetch('https://api.deepseek.com/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer sk-4241f1b27868414d8dd0155442809c53'
+                },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [
+                        { role: "system", content: "You are a specialized technical interview question generator that outputs only raw JSON arrays." },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 0.7,
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("DeepSeek API Error:", errorData);
+                throw new Error(`API returned ${response.status}`);
+            }
+
+            const data = await response.json();
+            const messageContent = data.choices[0].message.content.trim();
+
+            // Try to parse the content directly or extract json if it accidentally wrapped it in markdown
+            let jsonString = messageContent;
+            if (jsonString.startsWith('\`\`\`json')) {
+                jsonString = jsonString.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+            } else if (jsonString.startsWith('\`\`\`')) {
+                jsonString = jsonString.replace(/\`\`\`/g, '').trim();
+            }
+
+            const parsedQuestions = JSON.parse(jsonString) as Question[];
+
+            if (Array.isArray(parsedQuestions) && parsedQuestions.length > 0) {
+                setQuestions(parsedQuestions);
+            } else {
+                throw new Error("Invalid response format");
+            }
+        } catch (error) {
+            console.error('Error generating questions:', error);
+            alert('Failed to generate questions. Please try again or check the console for details.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAnswerSelect = (questionId: number, optionIndex: number) => {
+        if (showResults) return;
+        setUserAnswers(prev => ({
+            ...prev,
+            [questionId]: optionIndex
+        }));
+    };
+
+    const calculateScore = () => {
+        let score = 0;
+        questions.forEach(q => {
+            if (userAnswers[q.id] === q.correctAnswer) {
+                score++;
+            }
+        });
+        return score;
+    };
 
     return (
         <div className="space-y-12 pb-24 animate-in fade-in duration-700">
@@ -108,41 +209,151 @@ const InterviewPrep: React.FC = () => {
 
                     <div className="mt-8">
                         <button
-                            disabled={!selectedTech || !selectedRole}
-                            className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md ${selectedTech && selectedRole
-                                ? 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 cursor-pointer'
-                                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            onClick={handleGenerateQuestions}
+                            disabled={!selectedTech || !selectedRole || isLoading}
+                            className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md ${!selectedTech || !selectedRole || isLoading
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 cursor-pointer'
                                 }`}
                         >
-                            Generate Questions <ArrowRight size={16} />
+                            {isLoading ? (
+                                <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Generating 50 Questions...
+                                </>
+                            ) : (
+                                <>
+                                    Generate 50 Questions <ArrowRight size={16} />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
             </section>
 
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
-                        <FileCode2 size={24} />
+            {questions.length > 0 && (
+                <section className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-sm relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-[#1d84b5]/10 text-[#1d84b5] rounded-2xl flex items-center justify-center">
+                                <Database size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black uppercase tracking-tight">Interview Quiz</h3>
+                                <p className="text-slate-500 font-medium text-sm">
+                                    {technologies.find(t => t.value === selectedTech)?.label} • {focusRoles.find(r => r.value === selectedRole)?.label}
+                                </p>
+                            </div>
+                        </div>
+
+                        {showResults && (
+                            <div className="bg-slate-50 px-6 py-3 rounded-xl border border-slate-200 text-center">
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Your Score</p>
+                                <p className="text-2xl font-black text-[#1d84b5]">
+                                    {calculateScore()} <span className="text-slate-400 text-lg">/ {questions.length}</span>
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    <h4 className="font-black uppercase tracking-tight text-slate-900">Syntax & API</h4>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed">Brush up on core language features and standard libraries.</p>
-                </div>
-                <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
-                        <Terminal size={24} />
+
+                    <div className="space-y-8">
+                        {questions.map((q, index) => (
+                            <div key={q.id} className="p-6 rounded-2xl bg-slate-50 border border-slate-100">
+                                <h4 className="font-bold text-slate-900 mb-4 flex gap-3">
+                                    <span className="text-[#1d84b5] shrink-0">{index + 1}.</span>
+                                    {q.question}
+                                </h4>
+
+                                <div className="space-y-3 pl-7">
+                                    {q.options.map((option, optIdx) => {
+                                        const isSelected = userAnswers[q.id] === optIdx;
+                                        const isCorrect = showResults && q.correctAnswer === optIdx;
+                                        const isWrongSelection = showResults && isSelected && q.correctAnswer !== optIdx;
+
+                                        let optionClasses = "w-full text-left px-5 py-3 rounded-xl border transition-all flex items-center justify-between gap-4 ";
+
+                                        if (showResults) {
+                                            if (isCorrect) {
+                                                optionClasses += "bg-emerald-50 border-emerald-200 text-emerald-800 font-medium";
+                                            } else if (isWrongSelection) {
+                                                optionClasses += "bg-rose-50 border-rose-200 text-rose-800 font-medium";
+                                            } else {
+                                                optionClasses += "bg-white border-slate-200 text-slate-500 opacity-50";
+                                            }
+                                        } else {
+                                            optionClasses += isSelected
+                                                ? "bg-white border-[#1d84b5] ring-1 ring-[#1d84b5] text-[#1d84b5] font-medium shadow-sm"
+                                                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 cursor-pointer";
+                                        }
+
+                                        return (
+                                            <button
+                                                key={optIdx}
+                                                onClick={() => handleAnswerSelect(q.id, optIdx)}
+                                                disabled={showResults}
+                                                className={optionClasses}
+                                            >
+                                                <span>{option}</span>
+                                                {showResults && isCorrect && <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />}
+                                                {showResults && isWrongSelection && <XCircle size={18} className="text-rose-500 shrink-0" />}
+                                                {!showResults && isSelected && <CheckCircle2 size={18} className="text-[#1d84b5] shrink-0" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {showResults && (
+                                    <div className="mt-6 pl-7 animate-in fade-in duration-500">
+                                        <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200">
+                                            <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Explanation</p>
+                                            <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                                                {q.explanation}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                    <h4 className="font-black uppercase tracking-tight text-slate-900">Problem Solving</h4>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed">Practice common coding challenges and algorithms.</p>
-                </div>
-                <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
-                    <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
-                        <Database size={24} />
+
+                    {!showResults && Object.keys(userAnswers).length > 0 && (
+                        <div className="mt-12 flex justify-end shrink-0 sticky bottom-6 z-10">
+                            <button
+                                onClick={() => setShowResults(true)}
+                                className="flex items-center gap-2 px-8 py-4 bg-[#1d84b5] text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-[#166992] transition-colors shadow-lg shadow-[#1d84b5]/20"
+                            >
+                                Submit Answers <ArrowRight size={16} />
+                            </button>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {questions.length === 0 && (
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
+                        <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
+                            <FileCode2 size={24} />
+                        </div>
+                        <h4 className="font-black uppercase tracking-tight text-slate-900">Syntax & API</h4>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Brush up on core language features and standard libraries.</p>
                     </div>
-                    <h4 className="font-black uppercase tracking-tight text-slate-900">System Design</h4>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed">Understand architecture and best practices for the tech stack.</p>
-                </div>
-            </section>
+                    <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
+                        <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
+                            <Terminal size={24} />
+                        </div>
+                        <h4 className="font-black uppercase tracking-tight text-slate-900">Problem Solving</h4>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Practice common coding challenges and algorithms.</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 flex flex-col items-center text-center gap-4">
+                        <div className="w-12 h-12 bg-white text-[#1d84b5] rounded-full flex items-center justify-center shadow-sm">
+                            <Database size={24} />
+                        </div>
+                        <h4 className="font-black uppercase tracking-tight text-slate-900">System Design</h4>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">Understand architecture and best practices for the tech stack.</p>
+                    </div>
+                </section>
+            )}
         </div>
     );
 };
