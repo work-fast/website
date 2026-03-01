@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code, MonitorPlay, FileCode2, Terminal, Database, ArrowRight } from 'lucide-react';
+import { Code, MonitorPlay, FileCode2, Terminal, Database, ArrowRight, Briefcase } from 'lucide-react';
 
 const technologies = [
     { value: 'java', label: 'Java', category: 'Backend' },
@@ -23,8 +23,18 @@ const technologies = [
     { value: 'spring', label: 'Spring Boot', category: 'Backend' }
 ];
 
+const focusRoles = [
+    { value: 'intern', label: 'Intern / Student' },
+    { value: 'entry', label: 'Entry Level / Junior' },
+    { value: 'associate', label: 'Associate / Mid Level' },
+    { value: 'senior', label: 'Senior Level' },
+    { value: 'lead', label: 'Lead / Principal' },
+    { value: 'manager', label: 'Engineering Manager' }
+];
+
 const InterviewPrep: React.FC = () => {
     const [selectedTech, setSelectedTech] = useState<string>('');
+    const [selectedRole, setSelectedRole] = useState<string>('');
 
     return (
         <div className="space-y-12 pb-24 animate-in fade-in duration-700">
@@ -47,32 +57,59 @@ const InterviewPrep: React.FC = () => {
                     <h3 className="text-xl font-black uppercase tracking-tight">Select Technology</h3>
                 </div>
 
-                <div className="max-w-xl">
-                    <div className="space-y-4">
-                        <label className="block text-xs font-black uppercase tracking-widest text-slate-500">
-                            Target Technology / Framework
-                        </label>
-                        <div className="relative">
-                            <select
-                                value={selectedTech}
-                                onChange={(e) => setSelectedTech(e.target.value)}
-                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 pr-10 text-slate-900 font-medium focus:outline-none focus:border-[#1d84b5] focus:ring-1 focus:ring-[#1d84b5] transition-all cursor-pointer"
-                            >
-                                <option value="" disabled>Choose a technology...</option>
-                                {technologies.map((tech) => (
-                                    <option key={tech.value} value={tech.value}>
-                                        {tech.label} ({tech.category})
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
-                                <Code size={20} />
+                <div className="max-w-3xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500">
+                                Target Technology
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedTech}
+                                    onChange={(e) => setSelectedTech(e.target.value)}
+                                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 pr-10 text-slate-900 font-medium focus:outline-none focus:border-[#1d84b5] focus:ring-1 focus:ring-[#1d84b5] transition-all cursor-pointer"
+                                >
+                                    <option value="" disabled>Choose a technology...</option>
+                                    {technologies.map((tech) => (
+                                        <option key={tech.value} value={tech.value}>
+                                            {tech.label} ({tech.category})
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                                    <Code size={20} />
+                                </div>
                             </div>
                         </div>
 
+                        <div className="space-y-2">
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500">
+                                Focus Role
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedRole}
+                                    onChange={(e) => setSelectedRole(e.target.value)}
+                                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 pr-10 text-slate-900 font-medium focus:outline-none focus:border-[#1d84b5] focus:ring-1 focus:ring-[#1d84b5] transition-all cursor-pointer"
+                                >
+                                    <option value="" disabled>Choose a role...</option>
+                                    {focusRoles.map((role) => (
+                                        <option key={role.value} value={role.value}>
+                                            {role.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                                    <Briefcase size={20} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-8">
                         <button
-                            disabled={!selectedTech}
-                            className={`mt-8 w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md ${selectedTech
+                            disabled={!selectedTech || !selectedRole}
+                            className={`w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-md ${selectedTech && selectedRole
                                 ? 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 cursor-pointer'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 }`}
