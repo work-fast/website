@@ -74,31 +74,33 @@ const InterviewPrep: React.FC = () => {
         }`;
 
         try {
-            const response = await fetch('https://api.deepseek.com/chat/completions', {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY || 'sk-4241f1b27868414d8dd0155442809c53'}`
+                    'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY || '',
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
                 },
                 body: JSON.stringify({
-                    model: "deepseek-chat",
+                    model: "claude-3-5-sonnet-20241022",
+                    max_tokens: 8000,
+                    system: "You are a specialized technical interview question generator that outputs only raw JSON arrays.",
                     messages: [
-                        { role: "system", content: "You are a specialized technical interview question generator that outputs only raw JSON arrays." },
                         { role: "user", content: prompt }
                     ],
-                    temperature: 0.7,
-                    max_tokens: 8000
+                    temperature: 0.7
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error("DeepSeek API Error:", errorData);
+                console.error("Anthropic API Error:", errorData);
                 throw new Error(errorData.error?.message || `API returned ${response.status}`);
             }
 
             const data = await response.json();
-            const messageContent = data.choices[0].message.content.trim();
+            const messageContent = data.content[0].text.trim();
 
             // Try to parse the content directly or extract json if it accidentally wrapped it in markdown
             let jsonString = messageContent;
