@@ -37,13 +37,13 @@ const DashboardSidebar: React.FC = () => {
 
     return (
         <aside className={`h-screen sticky top-0 bg-white border-r border-slate-100 flex flex-col transition-all duration-300 z-40 ${isCollapsed ? 'w-24 p-4 items-center' : 'w-80 p-8'}`}>
-            <div className={`mb-12 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} w-full`}>
+            <div className={`mb-12 relative flex items-center justify-center w-full`}>
                 {!isCollapsed && (
-                    <img src="/logo.png" alt="work-fast" className="h-10 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
+                    <img src="/logo.png" alt="work-fast" className="h-[65px] w-[65px] object-contain cursor-pointer" onClick={() => navigate('/')} />
                 )}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                    className={`p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-colors ${!isCollapsed ? 'absolute right-0' : ''}`}
                 >
                     {isCollapsed ? <Menu size={24} /> : <ChevronLeft size={24} />}
                 </button>
