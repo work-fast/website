@@ -12,6 +12,7 @@ export interface User {
     email: string;
     name?: string;
     resumesLeft?: number;
+    skillScore?: number;
 }
 
 export const auth = {
@@ -73,6 +74,16 @@ export const auth = {
     getUser: (): User | null => {
         const user = localStorage.getItem(USER_KEY);
         return user ? JSON.parse(user) : null;
+    },
+
+    updateUser: (updates: Partial<User>) => {
+        const currentUser = auth.getUser();
+        if (currentUser) {
+            const updatedUser = { ...currentUser, ...updates };
+            localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+            return updatedUser;
+        }
+        return null;
     },
 
     isAuthenticated: () => !!localStorage.getItem(TOKEN_KEY)

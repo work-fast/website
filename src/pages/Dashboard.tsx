@@ -5,11 +5,12 @@ import { auth } from '../lib/auth';
 const Dashboard: React.FC = () => {
     const user = auth.getUser();
     const resumesLeft = user?.resumesLeft ?? 5; // Default to 5 for now
+    const skillScoreDisplay = user?.skillScore !== undefined ? `${user.skillScore}%` : 'N/A';
 
     const stats = [
         { label: 'Resumes Left', value: resumesLeft, icon: <Sparkles className="text-[#1d84b5]" />, color: 'bg-blue-50' },
         { label: 'Applications', value: 12, icon: <Target className="text-slate-900" />, color: 'bg-slate-50' },
-        { label: 'Interview Score', value: '88%', icon: <Zap className="text-amber-500" />, color: 'bg-amber-50' },
+        { label: 'Interview Score', value: skillScoreDisplay, icon: <Zap className="text-amber-500" />, color: 'bg-amber-50' },
     ];
 
     return (

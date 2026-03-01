@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Code, MonitorPlay, FileCode2, Terminal, Database, ArrowRight, Briefcase, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { auth } from '../lib/auth';
 
 const technologies = [
     { value: 'java', label: 'Java', category: 'Backend' },
@@ -144,6 +145,14 @@ const InterviewPrep: React.FC = () => {
             }
         });
         return score;
+    };
+
+    const handleSubmitAssessment = () => {
+        const score = calculateScore();
+        const percentage = Math.round((score / questions.length) * 100);
+
+        auth.updateUser({ skillScore: percentage });
+        setShowResults(true);
     };
 
     return (
@@ -311,7 +320,7 @@ const InterviewPrep: React.FC = () => {
                                         </button>
                                     ) : (
                                         <button
-                                            onClick={() => setShowResults(true)}
+                                            onClick={handleSubmitAssessment}
                                             disabled={userAnswers[questions[currentQuestionIndex].id] === undefined}
                                             className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors ${userAnswers[questions[currentQuestionIndex].id] !== undefined
                                                 ? "bg-[#1d84b5] text-white hover:bg-[#166992] shadow-lg shadow-[#1d84b5]/20"
