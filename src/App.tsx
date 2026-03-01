@@ -5,7 +5,7 @@ import Home from './pages/Home';
 import Generator from './pages/Generator';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import { InterviewPrep, Contact } from './pages/DashboardPlaceholders';
+import { InterviewPrep, Contact, History } from './pages/DashboardPlaceholders';
 import Settings from './pages/Settings';
 import DashboardLayout from './components/DashboardLayout';
 import { Platform, Solutions, Pricing } from './pages/Placeholders';
@@ -192,6 +192,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/generator" element={<Generator />} />
           <Route path="/interview-prep" element={<InterviewPrep />} />
+          <Route path="/history" element={<History />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/contact-support" element={<Contact />} />
         </Routes>

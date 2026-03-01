@@ -6,7 +6,8 @@ import {
     Settings as SettingsIcon,
     Mail,
     LogOut,
-    ChevronRight
+    ChevronRight,
+    History
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../lib/auth';
@@ -20,6 +21,7 @@ const DashboardSidebar: React.FC = () => {
         { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
         { name: 'Resume Gen', icon: <FileText size={20} />, path: '/generator' },
         { name: 'Interview Prep', icon: <MessageSquare size={20} />, path: '/interview-prep' },
+        { name: 'History', icon: <History size={20} />, path: '/history' },
         { name: 'Settings', icon: <SettingsIcon size={20} />, path: '/settings' },
         { name: 'Contact', icon: <Mail size={20} />, path: '/contact-support' },
     ];
