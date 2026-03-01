@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { User, Briefcase, Code, FileText, Award, GraduationCap, Quote, Plus, Trash2, Save } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Briefcase, Code, FileText, Award, GraduationCap, Quote, Plus, Trash2, Save, Download, Upload, FileJson, ChevronDown } from 'lucide-react';
+import { auth } from '../lib/auth';
 
 interface ExperienceItem { company: string; role: string; domain: string; duration: string; }
 interface ProjectItem { name: string; platform: string; category: string; features: string; }
@@ -24,6 +25,91 @@ const initialData = {
 
 const Settings: React.FC = () => {
     const [formData, setFormData] = useState(initialData);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Initialize with existing data on mount if available
+    useEffect(() => {
+        const user = auth.getUser();
+        if (user && user.profileData) {
+            setFormData(user.profileData);
+        }
+
+        // Close dropdown when clicking outside
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSave = () => {
+        try {
+            auth.updateUser({ profileData: formData });
+            alert("Settings saved successfully!");
+        } catch (error) {
+            console.error("Error saving settings", error);
+            alert("Failed to save settings.");
+        }
+    };
+
+    const handleDownloadTemplate = () => {
+        const blob = new Blob([JSON.stringify(initialData, null, 4)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'workfast_profile_template.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsDropdownOpen(false);
+    };
+
+    const handleDownloadJSON = () => {
+        const user = auth.getUser();
+        const username = user?.name || 'user';
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `${username}_${date}.json`;
+
+        const blob = new Blob([JSON.stringify(formData, null, 4)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsDropdownOpen(false);
+    };
+
+    const handleUploadJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const json = JSON.parse(event.target?.result as string);
+                if (json.personal_info) {
+                    setFormData(json);
+                    alert("JSON loaded successfully!");
+                } else {
+                    alert("Invalid JSON structure. Please use the template format.");
+                }
+            } catch (error) {
+                console.error("Error parsing JSON", error);
+                alert("Invalid JSON file.");
+            }
+        };
+        reader.readAsText(file);
+        setIsDropdownOpen(false);
+        if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input
+    };
 
     const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData({
@@ -87,7 +173,52 @@ const Settings: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex gap-4">
-                    <button className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all shadow-lg active:scale-95">
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-full font-bold uppercase tracking-widest text-xs hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                        >
+                            <FileJson size={16} /> Import / Export <ChevronDown size={14} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50">
+                                <div className="p-2 flex flex-col gap-1">
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#1d84b5] rounded-xl font-bold transition-all"
+                                    >
+                                        <Upload size={16} /> Upload JSON
+                                    </button>
+                                    <button
+                                        onClick={handleDownloadJSON}
+                                        className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#1d84b5] rounded-xl font-bold transition-all"
+                                    >
+                                        <Download size={16} /> Download JSON
+                                    </button>
+                                    <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                    <button
+                                        onClick={handleDownloadTemplate}
+                                        className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all"
+                                    >
+                                        <FileText size={16} /> Download Blank Template
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        <input
+                            type="file"
+                            accept=".json"
+                            ref={fileInputRef}
+                            onChange={handleUploadJSON}
+                            className="hidden"
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleSave}
+                        className="flex items-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                    >
                         <Save size={16} /> Save Changes
                     </button>
                 </div>

@@ -13,6 +13,7 @@ export interface User {
     name?: string;
     resumesLeft?: number;
     skillScore?: number;
+    profileData?: any;
 }
 
 export const auth = {
