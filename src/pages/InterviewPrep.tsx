@@ -61,11 +61,11 @@ const InterviewPrep: React.FC = () => {
         const techLabel = technologies.find(t => t.value === selectedTech)?.label || selectedTech;
         const roleLabel = focusRoles.find(r => r.value === selectedRole)?.label || selectedRole;
 
-        const prompt = `You are an expert technical interviewer. Generate exactly 50 multiple-choice questions for a ${roleLabel} focusing on ${techLabel}. 
+        const prompt = `You are an expert technical interviewer. Generate exactly 15 multiple-choice questions for a ${roleLabel} focusing on ${techLabel}. 
         Return ONLY a raw, valid JSON array of objects. Do not use markdown blocks, do not include any other text.
         Each object MUST have this exact structure:
         {
-            "id": number (1-50),
+            "id": number (1-15),
             "question": "The text of the question",
             "options": ["Option A", "Option B", "Option C", "Option D"],
             "correctAnswer": number (0-3, corresponding to the correct option index),
@@ -86,13 +86,14 @@ const InterviewPrep: React.FC = () => {
                         { role: "user", content: prompt }
                     ],
                     temperature: 0.7,
+                    max_tokens: 8000
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error("DeepSeek API Error:", errorData);
-                throw new Error(`API returned ${response.status}`);
+                throw new Error(errorData.error?.message || `API returned ${response.status}`);
             }
 
             const data = await response.json();
@@ -106,16 +107,22 @@ const InterviewPrep: React.FC = () => {
                 jsonString = jsonString.replace(/\`\`\`/g, '').trim();
             }
 
-            const parsedQuestions = JSON.parse(jsonString) as Question[];
+            try {
+                const parsedQuestions = JSON.parse(jsonString) as Question[];
 
-            if (Array.isArray(parsedQuestions) && parsedQuestions.length > 0) {
-                setQuestions(parsedQuestions);
-            } else {
-                throw new Error("Invalid response format");
+                if (Array.isArray(parsedQuestions) && parsedQuestions.length > 0) {
+                    setQuestions(parsedQuestions);
+                } else {
+                    throw new Error("API did not return a valid array of questions.");
+                }
+            } catch (parseError) {
+                console.error("Failed to parse JSON:", jsonString);
+                throw new Error("Failed to parse the response from the AI. The response might have been cut off or formatted incorrectly.");
             }
         } catch (error) {
             console.error('Error generating questions:', error);
-            alert('Failed to generate questions. Please try again or check the console for details.');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            alert(`Failed to generate questions. Error: ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
@@ -275,8 +282,8 @@ const InterviewPrep: React.FC = () => {
                                                 key={optIdx}
                                                 onClick={() => handleAnswerSelect(questions[currentQuestionIndex].id, optIdx)}
                                                 className={`w-full text-left px-6 py-4 rounded-xl border transition-all flex items-center justify-between gap-4 text-base ${isSelected
-                                                        ? "bg-white border-[#1d84b5] ring-2 ring-[#1d84b5] text-[#1d84b5] font-medium shadow-md"
-                                                        : "bg-white border-slate-200 text-slate-600 hover:border-[#1d84b5] hover:shadow-sm cursor-pointer"
+                                                    ? "bg-white border-[#1d84b5] ring-2 ring-[#1d84b5] text-[#1d84b5] font-medium shadow-md"
+                                                    : "bg-white border-slate-200 text-slate-600 hover:border-[#1d84b5] hover:shadow-sm cursor-pointer"
                                                     }`}
                                             >
                                                 <span>{option}</span>
@@ -296,8 +303,8 @@ const InterviewPrep: React.FC = () => {
                                             onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
                                             disabled={userAnswers[questions[currentQuestionIndex].id] === undefined}
                                             className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors ${userAnswers[questions[currentQuestionIndex].id] !== undefined
-                                                    ? "bg-slate-900 text-white hover:bg-slate-800 shadow-md"
-                                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                                ? "bg-slate-900 text-white hover:bg-slate-800 shadow-md"
+                                                : "bg-slate-200 text-slate-400 cursor-not-allowed"
                                                 }`}
                                         >
                                             Next Question <ArrowRight size={16} />
@@ -307,8 +314,8 @@ const InterviewPrep: React.FC = () => {
                                             onClick={() => setShowResults(true)}
                                             disabled={userAnswers[questions[currentQuestionIndex].id] === undefined}
                                             className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors ${userAnswers[questions[currentQuestionIndex].id] !== undefined
-                                                    ? "bg-[#1d84b5] text-white hover:bg-[#166992] shadow-lg shadow-[#1d84b5]/20"
-                                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                                ? "bg-[#1d84b5] text-white hover:bg-[#166992] shadow-lg shadow-[#1d84b5]/20"
+                                                : "bg-slate-200 text-slate-400 cursor-not-allowed"
                                                 }`}
                                         >
                                             Submit Assessment <CheckCircle2 size={16} />
