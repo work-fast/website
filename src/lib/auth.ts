@@ -90,7 +90,7 @@ export const auth = {
         if (data) {
             // Merge with local storage
             auth.updateUser({
-                resumesLeft: data.resumes_left,
+                resumesLeft: data.resumes_left ?? 5,
                 skillScore: data.skill_score,
                 profileData: data.profile_data,
                 name: data.name || data.email?.split('@')[0]
@@ -131,8 +131,13 @@ export const auth = {
     getToken: () => localStorage.getItem(TOKEN_KEY),
 
     getUser: (): User | null => {
-        const user = localStorage.getItem(USER_KEY);
-        return user ? JSON.parse(user) : null;
+        const userStr = localStorage.getItem(USER_KEY);
+        if (!userStr) return null;
+        const user = JSON.parse(userStr);
+        if (user.resumesLeft === undefined || user.resumesLeft === null) {
+            user.resumesLeft = 5;
+        }
+        return user;
     },
 
     updateUser: (updates: Partial<User>) => {

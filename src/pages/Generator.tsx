@@ -122,7 +122,7 @@ Generate ONLY the HTML code for the resume. The HTML should be self-contained wi
                     };
 
                     await auth.updateUserProfile({
-                        resumesLeft: (user.resumesLeft || 1) - 1,
+                        resumesLeft: (user.resumesLeft ?? 5) - 1,
                         profileData: {
                             ...user.profileData,
                             history: [newHistoryItem, ...historyArray]
