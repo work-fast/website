@@ -1,18 +1,157 @@
-import React from 'react';
-import { ArrowLeft, Sparkles, Send } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowLeft, Sparkles, Send, Loader2, Download, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { auth } from '../lib/auth';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 const Generator: React.FC = () => {
     const navigate = useNavigate();
+    const [jobDescription, setJobDescription] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedHtml, setGeneratedHtml] = useState<string | null>(null);
+    const [successUrl, setSuccessUrl] = useState<string | null>(null);
+    const resumeRef = useRef<HTMLDivElement>(null);
+
+    const handleGenerate = async () => {
+        if (!jobDescription.trim()) {
+            alert("Please paste a job description first.");
+            return;
+        }
+
+        const user = auth.getUser();
+        if (!user || user.resumesLeft === undefined || user.resumesLeft <= 0) {
+            alert("You do not have enough resumes left. Please upgrade your plan.");
+            return;
+        }
+
+        if (!user.profileData) {
+            alert("Please fill out your Profile Settings first before generating a resume.");
+            navigate('/settings');
+            return;
+        }
+
+        setIsGenerating(true);
+        setGeneratedHtml(null);
+        setSuccessUrl(null);
+
+        try {
+            // 1. Generate Resume HTML using Anthropic
+            const prompt = `You are an expert ATS resume writer. I will provide you with a user's JSON profile data and a job description. 
+Your task is to generate a highly tailored, professional, ATS-friendly resume in pure HTML format.
+
+USER PROFILE JSON:
+${JSON.stringify(user.profileData, null, 2)}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+Generate ONLY the HTML code for the resume. The HTML should be self-contained with inline CSS styling. Use a clean, modern, single-column or classic two-column layout that is highly readable. Use standard professional fonts (e.g., Arial, Helvetica, sans-serif or Garamond, Times New Roman, serif). Make sure it includes sections for Contact, Summary, Experience, Education, and Skills tailored specifically to hit keywords in the job description. DO NOT use markdown code block backticks like \`\`\`html in your response. Return ONLY the raw HTML string start to finish.`;
+
+            const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': anthropicApiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-5-sonnet-20241022',
+                    max_tokens: 4000,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+
+            if (!response.ok) throw new Error("Failed to generate resume from AI.");
+
+            const aiData = await response.json();
+            const rawHtml = aiData.content[0].text;
+
+            // Clean markdown backticks if AI accidentally includes them
+            const cleanHtml = rawHtml.replace(/^```html\n?/, '').replace(/```$/, '').trim();
+            setGeneratedHtml(cleanHtml);
+
+            // Wait a tick for React to render the hidden HTML div
+            setTimeout(async () => {
+                try {
+                    // 2. Convert HTML to PDF Blob
+                    const element = resumeRef.current;
+                    if (!element) throw new Error("Resume container not found in DOM");
+
+                    const pdfOpt = {
+                        margin: 0.5,
+                        filename: 'Resume.pdf',
+                        image: { type: 'jpeg' as const, quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
+                    };
+
+                    const pdfBlob = await html2pdf().set(pdfOpt).from(element).outputPdf('blob');
+
+                    // 3. Upload to Custom Storage API
+                    const fileBody = new FormData();
+                    fileBody.append('file', pdfBlob, `resume_${Date.now()}.pdf`);
+
+                    const storageApiKey = import.meta.env.VITE_STORAGE_API_KEY || 'lzPSnBmSLRDvxy84';
+                    const storageUrl = import.meta.env.VITE_STORAGE_API_URL || 'http://18.226.187.11/api/files';
+
+                    const uploadRes = await fetch(`${storageUrl}/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${storageApiKey}`
+                        },
+                        body: fileBody
+                    });
+
+                    if (!uploadRes.ok) throw new Error("Failed to upload PDF to storage API");
+                    const uploadData = await uploadRes.json();
+
+                    // The API response structure needs to provide the public URL. 
+                    // Let's assume it returns { fileUrl: "..." } or { url: "..." } or similar
+                    const finalUrl = uploadData.fileUrl || uploadData.url || uploadData.path || 'https://example.com/uploaded-resume.pdf';
+                    setSuccessUrl(finalUrl);
+
+                    // 4. Update Database: Decrement count and add to history
+                    const historyArray = user.profileData.history || [];
+                    const newHistoryItem = {
+                        title: jobDescription.substring(0, 30) + '...',
+                        date: new Date().toISOString(),
+                        url: finalUrl
+                    };
+
+                    await auth.updateUserProfile({
+                        resumesLeft: (user.resumesLeft || 1) - 1,
+                        profileData: {
+                            ...user.profileData,
+                            history: [newHistoryItem, ...historyArray]
+                        }
+                    });
+
+                } catch (pdfErr) {
+                    console.error("PDF/Upload error:", pdfErr);
+                    alert("Resume was generated but failed to save as PDF.");
+                } finally {
+                    setIsGenerating(false);
+                }
+            }, 500);
+
+        } catch (error) {
+            console.error("Generation error:", error);
+            alert("An error occurred during generation.");
+            setIsGenerating(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] py-20 px-6 sm:px-8">
             <div className="max-w-4xl mx-auto">
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/dashboard')}
                     className="flex items-center gap-2 text-slate-400 hover:text-slate-900 font-bold mb-12 transition-colors uppercase tracking-widest text-xs"
                 >
-                    <ArrowLeft size={16} /> Back to Home
+                    <ArrowLeft size={16} /> Back to Dashboard
                 </button>
 
                 <div className="space-y-12">
@@ -26,32 +165,75 @@ const Generator: React.FC = () => {
                             <span className="text-slate-300">Tailored Resumes.</span>
                         </h1>
                         <p className="text-lg font-medium text-slate-500 max-w-2xl">
-                            Paste the job description below. Our AI will analyze the requirements and generate a perfectly tailored resume in seconds.
+                            Paste the job description below. Our AI will analyze your profile and the requirements to generate a perfectly tailored PDF resume in seconds.
                         </p>
                     </div>
 
-                    <div className="relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-[#53a2be] to-[#1d84b5] rounded-[32px] blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
-                        <div className="relative bg-white rounded-3xl border border-slate-200 p-8 shadow-xl">
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Job Description</label>
-                            <textarea
-                                placeholder="Paste the full job description here..."
-                                className="w-full h-80 bg-slate-50 border-none rounded-2xl p-6 text-base font-medium text-slate-800 focus:ring-2 focus:ring-[#1d84b5] transition-all resize-none outline-none"
-                            ></textarea>
+                    {!successUrl ? (
+                        <div className="relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-[#53a2be] to-[#1d84b5] rounded-[32px] blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
+                            <div className="relative bg-white rounded-3xl border border-slate-200 p-8 shadow-xl">
+                                <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Job Description</label>
+                                <textarea
+                                    value={jobDescription}
+                                    onChange={(e) => setJobDescription(e.target.value)}
+                                    placeholder="Paste the full job description here..."
+                                    className="w-full h-80 bg-slate-50 border-none rounded-2xl p-6 text-base font-medium text-slate-800 focus:ring-2 focus:ring-[#1d84b5] transition-all resize-none outline-none"
+                                    disabled={isGenerating}
+                                ></textarea>
 
-                            <div className="mt-8 flex justify-end">
-                                <button className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-lg hover:bg-slate-700 transition-all shadow-2xl active:scale-95">
-                                    Generate Resume <Send size={24} />
+                                <div className="mt-8 flex justify-end">
+                                    <button
+                                        onClick={handleGenerate}
+                                        disabled={isGenerating || !jobDescription.trim()}
+                                        className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-lg hover:bg-slate-700 transition-all shadow-2xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isGenerating ? (
+                                            <>Generating... <Loader2 className="animate-spin" size={24} /></>
+                                        ) : (
+                                            <>Generate Resume <Send size={24} /></>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-green-50 rounded-3xl border border-green-200 p-12 text-center space-y-6">
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <CheckCircle2 size={40} className="text-green-600" />
+                            </div>
+                            <h2 className="text-3xl font-black text-slate-900">Resume Generated Successfully!</h2>
+                            <p className="text-slate-600 font-medium max-w-md mx-auto">
+                                Your highly tailored resume has been generated, saved to the database, and is ready for download.
+                            </p>
+                            <div className="flex justify-center gap-4 pt-4">
+                                <a
+                                    href={successUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 bg-[#1d84b5] text-white px-8 py-4 rounded-xl font-bold hover:bg-[#156a93] transition-colors shadow-lg"
+                                >
+                                    <Download size={20} /> Download PDF
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        setSuccessUrl(null);
+                                        setJobDescription('');
+                                        setGeneratedHtml(null);
+                                    }}
+                                    className="inline-flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow-sm"
+                                >
+                                    Generate Another
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12">
                         {[
                             { title: 'ATS-Friendly', desc: 'Guaranteed compatibility.' },
                             { title: 'Smart-Keyword', desc: 'Hits every JD marker.' },
-                            { title: 'Format-Ready', desc: 'PDF, DOCX, and more.' }
+                            { title: 'Cloud-Saved', desc: 'Always in your History folder.' }
                         ].map((item) => (
                             <div key={item.title} className="p-6 rounded-2xl bg-white border border-slate-100">
                                 <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm mb-1">{item.title}</h3>
@@ -60,6 +242,18 @@ const Generator: React.FC = () => {
                         ))}
                     </div>
                 </div>
+            </div>
+
+            {/* Hidden container to render the raw HTML for html2pdf conversion */}
+            <div style={{ display: 'none' }}>
+                {generatedHtml && (
+                    <div
+                        ref={resumeRef}
+                        className="bg-white"
+                        style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: '#000', width: '800px' }}
+                        dangerouslySetInnerHTML={{ __html: generatedHtml }}
+                    />
+                )}
             </div>
         </div>
     );
