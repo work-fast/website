@@ -41,20 +41,18 @@ router.post('/generate', withAuth, async (req: any, res: any) => {
             "explanation": "A brief explanation of why the answer is correct."
         }`;
 
-        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': anthropicApiKey || '',
-                'anthropic-version': '2023-06-01'
+                'Authorization': `Bearer ${deepseekApiKey}`
             },
             body: JSON.stringify({
-                model: "claude-3-5-sonnet-20241022",
-                max_tokens: 8000,
-                system: "You are a specialized technical interview question generator that outputs only raw JSON arrays.",
+                model: "deepseek-chat",
                 messages: [
+                    { role: "system", content: "You are a specialized technical interview question generator that outputs only raw JSON arrays." },
                     { role: "user", content: prompt }
                 ],
                 temperature: 0.7
@@ -63,11 +61,11 @@ router.post('/generate', withAuth, async (req: any, res: any) => {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Anthropic API Error: ${errorText}`);
+            throw new Error(`DeepSeek API Error: ${errorText}`);
         }
 
         const aiData = await response.json();
-        const messageContent = aiData.content[0].text.trim();
+        const messageContent = aiData.choices[0].message.content.trim();
 
         // Try to parse the content directly or extract json
         let jsonString = messageContent;

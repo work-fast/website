@@ -41,29 +41,30 @@ ${jobDescription}
 
 Generate ONLY the HTML code for the resume. The HTML should be self-contained with inline CSS styling. Use a clean, modern, single-column or classic two-column layout that is highly readable. Use standard professional fonts (e.g., Arial, Helvetica, sans-serif or Garamond, Times New Roman, serif). Make sure it includes sections for Contact, Summary, Experience, Education, and Skills tailored specifically to hit keywords in the job description. DO NOT use markdown code block backticks like \`\`\`html in your response. Return ONLY the raw HTML string start to finish.`;
 
-        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': anthropicApiKey || '',
-                'anthropic-version': '2023-06-01'
+                'Authorization': `Bearer ${deepseekApiKey}`
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
-                max_tokens: 4000,
-                messages: [{ role: 'user', content: prompt }]
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: "You are an expert ATS resume writer." },
+                    { role: 'user', content: prompt }
+                ]
             })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Anthropic API Error: ${errorText}`);
+            throw new Error(`DeepSeek API Error: ${errorText}`);
         }
 
         const aiData = await response.json();
-        const rawHtml = aiData.content[0].text;
+        const rawHtml = aiData.choices[0].message.content;
 
         // Clean markdown backticks if AI accidentally includes them
         const cleanHtml = rawHtml.replace(/^```html\n?/, '').replace(/```$/, '').trim();
