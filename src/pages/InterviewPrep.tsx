@@ -62,65 +62,33 @@ const InterviewPrep: React.FC = () => {
         const techLabel = technologies.find(t => t.value === selectedTech)?.label || selectedTech;
         const roleLabel = focusRoles.find(r => r.value === selectedRole)?.label || selectedRole;
 
-        const prompt = `You are an expert technical interviewer. Generate exactly 15 multiple-choice questions for a ${roleLabel} focusing on ${techLabel}. 
-        Return ONLY a raw, valid JSON array of objects. Do not use markdown blocks, do not include any other text.
-        Each object MUST have this exact structure:
-        {
-            "id": number (1-15),
-            "question": "The text of the question",
-            "options": ["Option A", "Option B", "Option C", "Option D"],
-            "correctAnswer": number (0-3, corresponding to the correct option index),
-            "explanation": "A brief explanation of why the answer is correct."
-        }`;
+
 
         try {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const token = localStorage.getItem('workfast_token');
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+            const response = await fetch(`${API_BASE}/interview/generate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY || '',
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-access': 'true'
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    model: "claude-sonnet-4-6",
-                    max_tokens: 8000,
-                    system: "You are a specialized technical interview question generator that outputs only raw JSON arrays.",
-                    messages: [
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.7
-                })
+                body: JSON.stringify({ techLabel, roleLabel })
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error("Anthropic API Error:", errorData);
-                throw new Error(errorData.error?.message || `API returned ${response.status}`);
+                console.error("Backend API Error:", errorData);
+                throw new Error(errorData.error || `API returned ${response.status}`);
             }
 
             const data = await response.json();
-            const messageContent = data.content[0].text.trim();
 
-            // Try to parse the content directly or extract json if it accidentally wrapped it in markdown
-            let jsonString = messageContent;
-            if (jsonString.startsWith('\`\`\`json')) {
-                jsonString = jsonString.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-            } else if (jsonString.startsWith('\`\`\`')) {
-                jsonString = jsonString.replace(/\`\`\`/g, '').trim();
-            }
-
-            try {
-                const parsedQuestions = JSON.parse(jsonString) as Question[];
-
-                if (Array.isArray(parsedQuestions) && parsedQuestions.length > 0) {
-                    setQuestions(parsedQuestions);
-                } else {
-                    throw new Error("API did not return a valid array of questions.");
-                }
-            } catch (parseError) {
-                console.error("Failed to parse JSON:", jsonString);
-                throw new Error("Failed to parse the response from the AI. The response might have been cut off or formatted incorrectly.");
+            if (Array.isArray(data.questions) && data.questions.length > 0) {
+                setQuestions(data.questions);
+            } else {
+                throw new Error("API did not return a valid array of questions.");
             }
         } catch (error) {
             console.error('Error generating questions:', error);
@@ -149,11 +117,15 @@ const InterviewPrep: React.FC = () => {
         return score;
     };
 
-    const handleSubmitAssessment = () => {
+    const handleSubmitAssessment = async () => {
         const score = calculateScore();
         const percentage = Math.round((score / questions.length) * 100);
 
-        auth.updateUser({ skillScore: percentage });
+        try {
+            await auth.updateScore(percentage);
+        } catch (err) {
+            console.error("Failed to save score:", err);
+        }
         setShowResults(true);
     };
 

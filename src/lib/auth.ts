@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const TOKEN_KEY = 'workfast_token';
 const USER_KEY = 'workfast_user';
@@ -20,22 +15,25 @@ export interface User {
 export const auth = {
     // Sign up with email and password
     signUp: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
+        const response = await fetch(`${API_BASE}/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         });
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
         return data;
     },
 
     // Verify the OTP code sent to email
     verifyOtp: async (email: string, token: string) => {
-        const { data, error } = await supabase.auth.verifyOtp({
-            email,
-            token,
-            type: 'signup',
+        const response = await fetch(`${API_BASE}/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, token })
         });
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
 
         if (data.session) {
             localStorage.setItem(TOKEN_KEY, data.session.access_token);
@@ -51,11 +49,13 @@ export const auth = {
 
     // Sign in with email and password
     signIn: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+        const response = await fetch(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         });
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
 
         if (data.session) {
             localStorage.setItem(TOKEN_KEY, data.session.access_token);
@@ -73,22 +73,20 @@ export const auth = {
     },
 
     fetchUserProfile: async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return null;
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) return null;
 
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        const response = await fetch(`${API_BASE}/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-        if (error && error.code !== 'PGRST116') {
-            console.error("Error fetching profile:", error);
+        if (!response.ok) {
+            console.error("Error fetching profile");
             return null;
         }
 
-        if (data) {
-            // Merge with local storage
+        const data = await response.json();
+        if (Object.keys(data).length > 0) {
             auth.updateUser({
                 resumesLeft: data.resumes_left ?? 5,
                 skillScore: data.skill_score,
@@ -100,30 +98,52 @@ export const auth = {
     },
 
     updateUserProfile: async (updates: Partial<User>) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) throw new Error("Not authenticated");
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) throw new Error("Not authenticated");
 
-        const dbUpdates = {
-            id: session.user.id,
-            email: session.user.email,
-            ...(updates.name !== undefined && { name: updates.name }),
-            ...(updates.resumesLeft !== undefined && { resumes_left: updates.resumesLeft }),
-            ...(updates.skillScore !== undefined && { skill_score: updates.skillScore }),
-            ...(updates.profileData !== undefined && { profile_data: updates.profileData })
-        };
+        const response = await fetch(`${API_BASE}/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(updates)
+        });
 
-        const { error } = await supabase
-            .from('profiles')
-            .upsert(dbUpdates, { onConflict: 'id' });
-
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
 
         // Also update local cache
         auth.updateUser(updates);
     },
 
+    updateScore: async (score: number) => {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) throw new Error("Not authenticated");
+
+        const response = await fetch(`${API_BASE}/profile/score`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ skillScore: score })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        auth.updateUser({ skillScore: score });
+    },
+
     logout: async () => {
-        await supabase.auth.signOut();
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (token) {
+            await fetch(`${API_BASE}/auth/logout`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => { });
+        }
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
     },

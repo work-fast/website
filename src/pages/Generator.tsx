@@ -36,41 +36,30 @@ const Generator: React.FC = () => {
         setSuccessUrl(null);
 
         try {
-            // 1. Generate Resume HTML using Anthropic
-            const prompt = `You are an expert ATS resume writer. I will provide you with a user's JSON profile data and a job description. 
-Your task is to generate a highly tailored, professional, ATS-friendly resume in pure HTML format.
+            // 1. Generate Resume HTML securely via Backend API
+            const token = localStorage.getItem('workfast_token');
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-USER PROFILE JSON:
-${JSON.stringify(user.profileData, null, 2)}
-
-JOB DESCRIPTION:
-${jobDescription}
-
-Generate ONLY the HTML code for the resume. The HTML should be self-contained with inline CSS styling. Use a clean, modern, single-column or classic two-column layout that is highly readable. Use standard professional fonts (e.g., Arial, Helvetica, sans-serif or Garamond, Times New Roman, serif). Make sure it includes sections for Contact, Summary, Experience, Education, and Skills tailored specifically to hit keywords in the job description. DO NOT use markdown code block backticks like \`\`\`html in your response. Return ONLY the raw HTML string start to finish.`;
-
-            const anthropicApiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const response = await fetch(`${API_BASE}/resume/generate`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': anthropicApiKey,
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-access': 'true'
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-5-sonnet-20241022',
-                    max_tokens: 4000,
-                    messages: [{ role: 'user', content: prompt }]
+                    jobDescription,
+                    profileData: user.profileData || {}
                 })
             });
 
-            if (!response.ok) throw new Error("Failed to generate resume from AI.");
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to generate resume from AI.");
+            }
 
             const aiData = await response.json();
-            const rawHtml = aiData.content[0].text;
+            const cleanHtml = aiData.html;
 
-            // Clean markdown backticks if AI accidentally includes them
-            const cleanHtml = rawHtml.replace(/^```html\n?/, '').replace(/```$/, '').trim();
             setGeneratedHtml(cleanHtml);
 
             // Wait a tick for React to render the hidden HTML div
